@@ -1,11 +1,10 @@
 import './style.css'
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-//import MilSymbol from 'milsymbol';
+import MilSymbol from 'milsymbol';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { ScatterplotLayer, GeoJsonLayer } from '@deck.gl/layers';
-//const sourceId = 'entity-source';
-//const layerId = 'entity-layer';
+import { ScatterplotLayer, GeoJsonLayer, IconLayer } from '@deck.gl/layers';
+
 
 const style = {
   "version": 8,
@@ -31,8 +30,8 @@ const style = {
 const map = new maplibregl.Map({
   container: 'map',
   style: style,
-  center: [-3.97300533, 40.79907993,],
-  zoom: 5
+  center: [-3.695526, 40.417678],
+  zoom: 8
 });
 
 map.addControl(new maplibregl.NavigationControl({
@@ -46,29 +45,60 @@ map.on('zoomend', () => {
   console.log('Current zoom level:', map.getZoom());
 })
 
+// --- Icon Generation Logic ---
+const ICON_SIZE = 40;
+const DEFAULT_SIDC = '10031000001211000000';
+
+function loadMilSymbolIcon(sidc) {
+    const symbol = new MilSymbol.Symbol(sidc, { size: ICON_SIZE });
+    return symbol.asSVG();
+}
+
+function svgToDataURL(svg) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+// 1. Pre-calculate the Icon Atlas URL and Mapping
+const DEFAULT_ICON_ID = 'default-milsymbol-icon';
+const defaultIconUrl = svgToDataURL(loadMilSymbolIcon(DEFAULT_SIDC));
+
+const ICON_MAPPING = {
+    [DEFAULT_ICON_ID]: {
+        x: 0,
+        y: 0,
+        width: 62,//aunque MilSymbol lo generamos con 40, aqui hay que acomodarlo
+        height: 42,//aunque MilSymbol lo generamos con 40, aqui hay que acomodarlo
+    }
+};
+
 map.on('load', () => {
-  const geoJsonDataUrl = `http://localhost:8081/geoserver/ows?service=WFS&version=1.1.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputformat=application/json&srsName=EPSG:4326`;
+  const geoJsonDataUrl = `http://localhost:8081/geoserver/ows?service=WFS&version=1.1.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputformat=application/json&srsName=EPSG:4326&maxfeatures=4000&BBOX=-4.2033,40.1982,-3.1486,40.754,EPSG:4326`;
   
-  //ESTO SERÍA PARA SI LAS FEATURES HAY QUE MONTARLAS O LEERLAS DE ALGUN LADO
-  // const scatter = ScatterplotLayer({
-  //   id: "postal-codes",
-  //   data: features,
-  //   getPosition: d => d.geometry.coordinates,
-  //   getFillColor: [0, 150, 255],
-  //   getRadius: 1,
-  //   radiusUnits: "pixels",
-  //   pickable: false
-  // });
-const scatter = new GeoJsonLayer({
-    id: "geojson-points",
-    data: geoJsonDataUrl, // Deck.gl fetches and parses this GeoJSON FeatureCollection
-    pointType: "circle",
-    getPointRadius: 1,
-    getFillColor: [0, 150, 255],
-    pointRadiusUnits: "pixels",
-    pointRadiusMinPixels: 1,
-    pickable: false
-});
-  const overlay = new MapboxOverlay({ layers: [scatter], interleaved: false });
+  const iconLayer = new IconLayer({
+    id: 'milsymbol-icon-layer',
+    data: geoJsonDataUrl,
+    dataTransform: data => data.features,
+    
+    // Icon Atlas and Mapping
+    iconAtlas: defaultIconUrl,
+    iconMapping: ICON_MAPPING,
+    
+    // Accessors
+    getPosition: d => d.geometry.coordinates, // Extracts [lng, lat] from GeoJSON Feature
+    getIcon: d => DEFAULT_ICON_ID, // Returns the pre-defined icon key
+    getSize: 30,
+    
+    // Styling and Sizing
+    sizeScale: 1,
+    sizeUnits: 'pixels',
+    sizeBasis: 'width',//la dimenson para la escalacion 
+    
+    pickable: true,
+    onClick: feat => {
+      console.log(feat.object)
+    },
+  });
+
+  const overlay = new MapboxOverlay({ layers: [iconLayer], interleaved: false });
   map.addControl(overlay);
 })
