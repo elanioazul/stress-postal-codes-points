@@ -2,18 +2,20 @@ import './style.css'
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MilSymbol from 'milsymbol';
+import * as flatgeobuf from 'flatgeobuf';
 
-const sourceId = 'entity-source';
-const layerId = 'entity-layer';
+const sourceId = 'my-fgb-source';
+const layerId = 'my-fgb-layer';
+const wfsUrl = "http://localhost:8081/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputFormat=application/flatgeobuf&srsName=EPSG:4326&maxfeatures=4000&BBOX=-0.935,41.5407,-0.6889,41.6541,EPSG:4326";
 
 const style = {
   "version": 8,
   "glyphs": 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf', // openmaptiles/fonts  endpoint
-	"sources": {
+  "sources": {
     "osm": {
-			"type": "raster",
-			"tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-			"tileSize": 256,
+      "type": "raster",
+      "tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      "tileSize": 256,
       "attribution": "&copy; OpenStreetMap Contributors",
       "maxzoom": 19
     }
@@ -45,46 +47,46 @@ map.on('zoomend', () => {
   console.log('Current zoom level:', map.getZoom());
 })
 
-// function loadMilSymbolIcon(imageId, sidc) {
-//     const lib = MilSymbol;
-//     if (lib && lib.Symbol) {
-//       const size = Math.max(40, 40);
-//       const symbol = new lib.Symbol(sidc, {size});
-//       console.log(symbol)
-//       const svgString = symbol.asSVG();
+async function loadFlatGeobufData() {
+  try {
+    const response = await fetch(wfsUrl);
+    console.log(response);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
 
-//       // Create an Image element to load the SVG
-//       const img = new Image();
-//       img.onload = () => {
-//           // Add the image to the map style
-//           map.addImage(imageId, img);
-//       };
-//       // The src must be a data URL to load the SVG string
-//       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-//     }
-// }
+    let geoJsonData = { type: "FeatureCollection", features: [] };
+    for await(const feat of flatgeobuf.geojson.deserialize(response.body)) {
+      geoJsonData.features.push(feat)
+    }
 
-map.on('load', () => {
-  map.addSource(sourceId, {
-    type: 'geojson',
-    data: `http://localhost:8081/geoserver/ows?service=WFS&version=1.1.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputformat=application/json&srsName=EPSG:4326&maxfeatures=4000&BBOX=-0.935,41.5407,-0.6889,41.6541,EPSG:4326`,
-  });
+    // C. Add the source using the GeoJSON object
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: geoJsonData // Pass the parsed GeoJSON object
+    });
 
-  //loadMilSymbolIcon('default-milsymbol-icon', '10031000001211000000');
-
-  map.addLayer({
-    id: layerId,
-    //type: 'symbol',
-    type: 'circle',
-    source: sourceId,
-    // layout: {
-    //   'icon-image': 'default-milsymbol-icon', // Use the loaded icon image ID
-    //   'icon-allow-overlap': true,
-    //   'icon-size': 0.5 // Adjust size as needed
-    // }
-    paint: {
+    map.addLayer({
+      id: layerId,
+      type: 'circle',
+      source: sourceId,
+      paint: {
         "circle-radius": 1.5,
         "circle-color": "rgba(0, 150, 255, 0.7)"
       }
-  });
+    });
+
+  } catch (error) {
+    console.error('Error loading FlatGeobuf data:', error);
+  }
+}
+
+
+
+loadFlatGeobufData();
+map.on('load', () => {
+
+
+
 });
