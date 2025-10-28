@@ -6,7 +6,7 @@ import * as flatgeobuf from 'flatgeobuf';
 
 const sourceId = 'my-fgb-source';
 const layerId = 'my-fgb-layer';
-const wfsUrl = "http://localhost:8081/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputFormat=application/flatgeobuf&srsName=EPSG:4326&maxfeatures=4000&BBOX=-0.935,41.5407,-0.6889,41.6541,EPSG:4326";
+const wfsUrl = "http://localhost:8081/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=testing_the_waters:spain_osm_postcode_points&outputFormat=application/flatgeobuf&srsName=EPSG:4326&maxfeatures=100000";
 
 const style = {
   "version": 8,
