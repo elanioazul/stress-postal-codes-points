@@ -1,42 +1,36 @@
 import './style.css'
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 
-const style = {
-  "version": 8,
-  "glyphs": 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf', // openmaptiles/fonts  endpoint
-	"sources": {
-    "osm": {
-			"type": "raster",
-			"tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-			"tileSize": 256,
-      "attribution": "&copy; OpenStreetMap Contributors",
-      "maxzoom": 19
-    }
-  },
-  "layers": [
-    {
-      "id": "osm",
-      "type": "raster",
-      "source": "osm" // This must match the source key above
-    }
-  ]
-};
 
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://demotiles.maplibre.org/style.json' /*style*/,
-  center: [-3.97300533, 40.79907993,],
-  zoom: 5
+import { Router } from "./router.js";
+import { PATHS } from "./routes.js";
+
+// Instantiate the router with the paths
+const router = new Router(PATHS); 
+
+// --- Router Event Listener ---
+// The popstate event fires when the active history entry changes.
+// This handles:
+// 1. Initial page load (though initRouter already handles this)
+// 2. Browser back/forward button clicks
+// 3. Programmatic changes via pushState (which is inside your router.load)
+window.addEventListener("popstate", () => {
+    // Get the current path from the URL
+    const { pathname = "/" } = window.location;
+
+    // Convert the pathname to the key used in your PATHS object
+    // "/" becomes "home"
+    // "/visor" becomes "visor"
+    const URI = pathname === "/" ? "home" : pathname.replace("/", "");
+    
+    // Use the router to load the correct page based on the new URI
+    // Note: The load method *also* calls history.pushState, which is okay here
+    // but you might want to modify your Router's load method slightly
+    // to avoid an extra history entry when navigating via popstate.
+// Tell the router *NOT* to push a new history state, as popstate means 
+    // the history state has already been changed by the browser.
+    router.load(URI, false);
 });
 
-map.addControl(new maplibregl.NavigationControl({
-  visualizePitch: true,
-  visualizeRoll: true,
-  showZoom: true,
-  showCompass: true
-}));
+// For easier debugging or future navigation
+window.router = router;
 
-map.on('zoomend', () => {
-  console.log('Current zoom level:', map.getZoom());
-})
